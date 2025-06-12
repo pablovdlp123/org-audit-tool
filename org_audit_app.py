@@ -4,20 +4,6 @@ import networkx as nx
 from pyvis.network import Network
 import streamlit.components.v1 as components
 import tempfile
-from openai import OpenAI
-
-# <-- Insert your OpenAI API key here -->
-OPENAI_API_KEY = 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
-
-# Initialize the OpenAI client with your API key
-client = OpenAI(api_key=OPENAI_API_KEY)
-
-# Now use client normally:
-response = client.chat.completions.create(
-    model="gpt-4o-mini",
-    messages=[{"role": "user", "content": "Hello"}]
-)
-print(response.choices[0].message.content)
 
 def run_audit(df):
     span_of_control = df['Reports To'].value_counts().rename_axis('Manager ID').reset_index(name='Direct Reports')
@@ -60,33 +46,9 @@ def visualize_org_chart(df):
 
     components.html(html_content, height=650, scrolling=True)
 
-def generate_ai_recommendations(audit_results):
-    prompt = f"""
-You are an expert organizational consultant.
-
-Given the following audit results, provide clear, concise recommendations to improve organizational structure, reduce overhead, and optimize span of control.
-
-Audit results:
-- Span of control summary: {audit_results['span_of_control'].to_dict(orient='records')}
-- Managers with low span (<2): {audit_results['low_span_managers'].to_dict(orient='records')}
-- Org depth (max levels): {audit_results['org_depth']}
-- Cost per level: {audit_results['cost_per_level'].to_dict(orient='records')}
-- Duplicate roles in same department: {audit_results['duplicate_roles'].to_dict(orient='records')}
-
-Please provide 3 to 5 actionable recommendations.
-"""
-
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "system", "content": "You are a helpful assistant."},
-                  {"role": "user", "content": prompt}]
-    )
-
-    return response.choices[0].message.content
-
 def main():
-    st.title("Org Structure Audit & Visualization Tool with AI Recommendations")
-    st.markdown("Upload your org chart Excel file to run audit, visualize, and get AI-driven recommendations.")
+    st.title("Org Structure Audit & Visualization Tool")
+    st.markdown("Upload your org chart Excel file to run audit and visualize the structure.")
 
     uploaded_file = st.file_uploader("Upload Excel (.xlsx)", type=["xlsx"])
     if uploaded_file is not None:
@@ -119,9 +81,8 @@ def main():
             else:
                 st.write("No duplicate roles found.")
 
-            st.write("## AI Recommendations")
-            recommendations = generate_ai_recommendations(audit_results)
-            st.info(recommendations)
+            st.write("### AI Recommendations")
+            st.info("GPT integration coming soon!")
 
         except Exception as e:
             st.error(f"Error loading file: {e}")
