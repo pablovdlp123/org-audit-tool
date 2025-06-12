@@ -4,18 +4,23 @@ import networkx as nx
 from pyvis.network import Network
 import streamlit.components.v1 as components
 import tempfile
+import os
+from openai import OpenAI
+
+# Initialize OpenAI client once
+client = OpenAI()
 
 def run_audit(df):
     span_of_control = df['Reports To'].value_counts().rename_axis('Manager ID').reset_index(name='Direct Reports')
     span_of_control = span_of_control.merge(df[['Employee ID', 'Name']], left_on='Manager ID', right_on='Employee ID', how='left')
     span_of_control = span_of_control[['Manager ID', 'Name', 'Direct Reports']]
     low_span_managers = span_of_control[span_of_control['Direct Reports'] < 2]
-    
+
     org_depth = df['Level'].max()
     cost_per_level = df.groupby('Level')['Cost'].sum().reset_index(name='Total Cost')
     duplicates = df.groupby(['Department', 'Role']).size().reset_index(name='Count')
     duplicate_roles = duplicates[duplicates['Count'] > 1]
-    
+
     return {
         "span_of_control": span_of_control,
         "low_span_managers": low_span_managers,
@@ -46,9 +51,40 @@ def visualize_org_chart(df):
 
     components.html(html_content, height=650, scrolling=True)
 
+def generate_ai_recommendations(df, audit):
+    num_employees = len(df)
+    num_departments = df['Department'].nunique()
+    avg_span_of_control = audit["span_of_control"]['Direct Reports'].mean()
+    org_depth = audit["org_depth"]
+
+    prompt = f"""
+    You are an expert management consultant. Analyze the following organizational information:
+
+    - Number of employees: {num_employees}
+    - Number of departments: {num_departments}
+    - Average span of control (direct reports per manager): {avg_span_of_control:.2f}
+    - Organizational depth (levels): {org_depth}
+
+    Based on this, provide 3-5 actionable recommendations to reduce overhead and improve organizational efficiency, focusing on spans of control, organizational layers, and role duplication.
+    """
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are an expert organizational consultant."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=300,
+            temperature=0.7,
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Error communicating with OpenAI API: {e}"
+
 def main():
     st.title("Org Structure Audit & Visualization Tool")
-    st.markdown("Upload your org chart Excel file to run audit and visualize the structure.")
+    st.markdown("Upload your org chart Excel file to run audit, visualize the structure, and get AI recommendations.")
 
     uploaded_file = st.file_uploader("Upload Excel (.xlsx)", type=["xlsx"])
     if uploaded_file is not None:
@@ -57,7 +93,6 @@ def main():
             st.success("File loaded successfully!")
             st.write("### Sample of uploaded data", df.head())
 
-            # Show org chart visualization
             st.write("## Org Chart Visualization")
             visualize_org_chart(df)
 
@@ -82,12 +117,11 @@ def main():
                 st.write("No duplicate roles found.")
 
             st.write("### AI Recommendations")
-            st.info("GPT integration coming soon!")
+            recommendations = generate_ai_recommendations(df, audit_results)
+            st.info(recommendations)
 
         except Exception as e:
             st.error(f"Error loading file: {e}")
 
 if __name__ == "__main__":
     main()
-
-
