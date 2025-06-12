@@ -7,6 +7,9 @@ import tempfile
 import os
 from openai import OpenAI
 
+import os
+st.write("OPENAI_API_KEY detected:", "Yes" if os.getenv("OPENAI_API_KEY") else "No")
+
 # Initialize OpenAI client once
 client = OpenAI()
 
