@@ -5,10 +5,8 @@ from pyvis.network import Network
 import streamlit.components.v1 as components
 import tempfile
 import os
-from openai import OpenAI
-
-import os
 st.write("OPENAI_API_KEY detected:", "Yes" if os.getenv("OPENAI_API_KEY") else "No")
+from openai import OpenAI
 
 # Initialize OpenAI client once
 client = OpenAI()
